@@ -1,0 +1,91 @@
+{
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build",
+    "devPath": "http://localhost:1420",
+    "distDir": "../dist"
+  },
+  "package": {
+    "productName": "Plaxo OTP",
+    "version": "1.3.2"
+  },
+  "tauri": {
+    "allowlist": {
+      "all": false,
+      "shell": {
+        "all": false,
+        "open": true
+      },
+      "clipboard": {
+        "all": true
+      },
+      "fs": {
+        "all": true,
+        "scope": ["$APPDATA/*"]
+      }
+    },
+
+    "security": {
+      "csp": null
+    },
+    "windows": [
+      {
+        "fullscreen": false,
+        "resizable": false,
+        "title": "Plaxo OTP",
+        "width": 450,
+        "height": 650,
+        "minWidth": 400,
+        "minHeight": 500,
+        "visible": false,
+        "decorations": true,
+        "alwaysOnTop": false,
+        "skipTaskbar": false,
+        "center": true,
+        "transparent": false
+      }
+    ],
+    "systemTray": {
+      "iconPath": "icons/tray-icon.png",
+      "iconAsTemplate": false,
+      "menuOnLeftClick": false
+    },
+    "bundle": {
+      "active": true,
+      "targets": "all",
+      "identifier": "com.plaxo.otp",
+      "icon": [
+        "icons/32x32.png",
+        "icons/48x48.png",
+        "icons/64x64.png",
+        "icons/128x128.png",
+        "icons/128x128@2x.png",
+        "icons/256x256.png",
+        "icons/512x512.png",
+        "icons/icon.png",
+        "icons/icon-square.png",
+        "icons/icon.icns",
+        "icons/icon.ico"
+      ],
+      "category": "Utility",
+      "shortDescription": "Secure OTP code generator",
+      "longDescription": "A secure desktop application for generating OTP codes with military-grade encryption",
+      "deb": {
+        "depends": []
+      },
+      "macOS": {
+        "frameworks": [],
+        "minimumSystemVersion": "",
+        "exceptionDomain": "",
+        "signingIdentity": null,
+        "providerShortName": null,
+        "entitlements": null
+      },
+      "windows": {
+        "certificateThumbprint": null,
+        "digestAlgorithm": "sha256",
+        "timestampUrl": ""
+      }
+    }
+  }
+}

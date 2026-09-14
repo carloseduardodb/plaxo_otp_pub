@@ -1,0 +1,57 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@400;500;600;700&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background-color: #0F172A;
+    color: #F8FAFC;
+  }
+
+  #root {
+    width: 100vw;
+    height: 100vh;
+  }
+}
+
+@layer components {
+  .main-container {
+    @apply w-full h-full bg-plaxo-background flex flex-col;
+  }
+  
+  .content-container {
+    @apply flex-1 flex flex-col bg-plaxo-surface border-l border-r border-plaxo-border;
+  }
+  
+  .header-sticky {
+    @apply sticky top-0 z-10 p-6 border-b border-plaxo-border/50 bg-plaxo-surface;
+  }
+  
+  .content-scrollable {
+    @apply flex-1 overflow-y-auto p-6 space-y-4 bg-plaxo-background;
+  }
+  
+  .auth-container {
+    @apply w-full h-full bg-plaxo-background flex items-center justify-center p-6;
+  }
+  
+  .auth-card {
+    @apply w-full max-w-md bg-plaxo-surface/95 backdrop-blur-xl rounded-2xl p-8 shadow-2xl border border-plaxo-border/50;
+  }
+  
+  .otp-progress {
+    @apply w-full h-1 bg-plaxo-border rounded-full overflow-hidden;
+  }
+  
+  .otp-progress-bar {
+    @apply h-full bg-plaxo-primary transition-all duration-1000 ease-linear;
+  }
+}

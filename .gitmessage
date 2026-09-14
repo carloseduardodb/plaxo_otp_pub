@@ -1,0 +1,23 @@
+# <type>(<scope>): <subject>
+#
+# <body>
+#
+# <footer>
+
+# Types:
+# feat: new feature
+# fix: bug fix
+# docs: documentation
+# style: formatting, missing semi colons, etc
+# refactor: code change that neither fixes a bug nor adds a feature
+# test: adding tests
+# chore: maintain, dependencies, build process, etc
+# perf: performance improvements
+# ci: continuous integration
+# build: build system or external dependencies
+# revert: revert previous commit
+
+# Scope examples: ui, auth, crypto, import, export, tray
+# Subject: imperative mood, no period, max 50 chars
+# Body: explain what and why, max 72 chars per line
+# Footer: breaking changes, issues closed
