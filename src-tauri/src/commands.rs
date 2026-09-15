@@ -224,7 +224,7 @@ pub fn copy_to_clipboard<R: Runtime>(app: AppHandle<R>, text: String) -> Result<
     std::thread::spawn(move || {
         std::thread::sleep(std::time::Duration::from_secs(CLIPBOARD_CLEAR_SECS));
 
-        let manager = handle.clipboard_manager();
+        let mut manager = handle.clipboard_manager();
         if let Ok(Some(current)) = manager.read_text() {
             if current == text {
                 let _ = manager.write_text(String::new());
