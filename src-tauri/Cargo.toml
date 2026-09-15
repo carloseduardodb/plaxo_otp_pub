@@ -12,10 +12,11 @@ rust-version = "1.70"
 tauri-build = { version = "1.5", features = [] }
 
 [dependencies]
-# clipboard-all fica porque copy_to_clipboard usa a API pelo lado Rust.
-# fs-all e shell-open sairam: nada no codigo os usa, e mante-los so ampliava
-# a superficie exposta a webview.
-tauri = { version = "1.5", features = ["clipboard-all", "system-tray", "wry"], default-features = false }
+# O Tauri v1 exige que estas features batam exatamente com a allowlist do
+# tauri.conf.json. Ficam so as duas capacidades de clipboard que o codigo usa:
+# write-text para copiar o codigo, read-text para conferir antes de limpar.
+# fs-all e shell-open sairam por nao terem uso.
+tauri = { version = "1.5", features = ["clipboard-read-text", "clipboard-write-text", "system-tray", "wry"], default-features = false }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 totp-rs = "5.0"

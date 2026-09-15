@@ -17,7 +17,9 @@
         "open": false
       },
       "clipboard": {
-        "all": false
+        "all": false,
+        "readText": true,
+        "writeText": true
       },
       "fs": {
         "all": false
