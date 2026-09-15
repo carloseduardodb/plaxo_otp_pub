@@ -25,7 +25,7 @@ jobs:
             args: '--target aarch64-apple-darwin'
           - platform: 'macos-latest'
             args: '--target x86_64-apple-darwin'
-          - platform: 'ubuntu-20.04'
+          - platform: 'ubuntu-22.04'
             args: ''
           - platform: 'windows-latest'
             args: ''
@@ -36,10 +36,10 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install dependencies (ubuntu only)
-        if: matrix.platform == 'ubuntu-20.04'
+        if: matrix.platform == 'ubuntu-22.04'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev
+          sudo apt-get install -y libwebkit2gtk-4.0-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev
 
       - name: Rust setup
         uses: dtolnay/rust-toolchain@stable
@@ -73,25 +73,41 @@ jobs:
           tagName: ${{ inputs.version }}
           releaseName: 'Plaxo OTP ${{ inputs.version }}'
           releaseBody: |
-            🔐 **Plaxo OTP** - Gerador seguro de códigos OTP
-            
-            ## 📦 Downloads Disponíveis
-            - **Windows**: Arquivo `.msi` para instalação
-            - **macOS**: Arquivo `.dmg` para instalação (Intel e Apple Silicon)
-            - **Linux**: Arquivos `.deb` e `.AppImage`
-            
-            ## ✨ Características
-            - 🛡️ Criptografia AES-256-GCM (nível bancário)
-            - 🎨 Interface moderna com ícones das plataformas
-            - 📱 Importação direta do 2FAS
-            - ⚡ Geração automática de códigos OTP
-            - 🔍 Pesquisa inteligente de aplicativos
-            
-            ## 🚀 Como Instalar
-            1. Baixe o arquivo para seu sistema operacional
+            **Plaxo OTP** — gerador de códigos TOTP para desktop, com cofre local
+            cifrado por senha mestre.
+
+            ## Downloads
+            - **Windows**: `.msi`
+            - **macOS**: `.dmg` (Intel e Apple Silicon)
+            - **Linux**: `.deb` e `.AppImage`
+
+            ## Instalação
+            1. Baixe o arquivo do seu sistema
             2. Execute o instalador
             3. Abra o Plaxo OTP pela bandeja do sistema
-            4. Configure sua senha mestre
+            4. Defina sua senha mestre
+
+            > Os instaladores **não são assinados**. O Windows exibe um aviso do
+            > SmartScreen e o macOS exige liberar o app em Ajustes > Privacidade e
+            > Segurança. Compile você mesmo se preferir não confiar no binário.
+
+            ## Segurança
+            - Cofre cifrado com AES-256-GCM (cifragem autenticada)
+            - Chave derivada com Argon2id e salt aleatório por cofre
+            - A senha mestre não é gravada em disco nem retida em memória
+            - O backup enviado ao Google Drive vai cifrado, sem a chave
+
+            Limitações conhecidas (malware local, senha mestre fraca, binários não
+            assinados, ausência de auditoria externa) estão descritas em
+            [SECURITY.md](https://github.com/${{ github.repository }}/blob/main/SECURITY.md).
+
+            ## Atualizando de uma versão anterior
+            Cofres da 1.3.3 ou anterior são migrados automaticamente no primeiro
+            desbloqueio; o arquivo antigo é preservado como `apps.enc.backup`.
+            Aquelas versões usavam uma derivação de chave fraca, então **considere
+            trocar a senha mestre** após atualizar.
+
+            Detalhes no [README](https://github.com/${{ github.repository }}).
           releaseDraft: false
           prerelease: ${{ inputs.prerelease }}
           args: ${{ matrix.args }}

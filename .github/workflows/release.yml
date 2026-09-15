@@ -65,32 +65,41 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: 'Plaxo OTP ${{ github.ref_name }}'
           releaseBody: |
-            🔐 **Plaxo OTP** - Gerador seguro de códigos OTP
-            
-            ## 📦 Downloads Disponíveis
-            - **Windows**: Arquivo `.msi` para instalação
-            - **macOS**: Arquivo `.dmg` para instalação (Intel e Apple Silicon)
-            - **Linux**: Arquivos `.deb` e `.AppImage`
-            
-            ## ✨ Características
-            - 🛡️ Criptografia AES-256-GCM (nível bancário)
-            - 🎨 Interface moderna com ícones das plataformas
-            - 📱 Importação direta do 2FAS
-            - ⚡ Geração automática de códigos OTP
-            - 🔍 Pesquisa inteligente de aplicativos
-            
-            ## 🚀 Como Instalar
-            1. Baixe o arquivo para seu sistema operacional
+            **Plaxo OTP** — gerador de códigos TOTP para desktop, com cofre local
+            cifrado por senha mestre.
+
+            ## Downloads
+            - **Windows**: `.msi`
+            - **macOS**: `.dmg` (Intel e Apple Silicon)
+            - **Linux**: `.deb` e `.AppImage`
+
+            ## Instalação
+            1. Baixe o arquivo do seu sistema
             2. Execute o instalador
             3. Abra o Plaxo OTP pela bandeja do sistema
-            4. Configure sua senha mestre
-            
-            ## 🔒 Segurança
-            - Dados sempre criptografados localmente
-            - Chave de criptografia apenas na memória
-            - Código fonte aberto e auditável
-            
-            **Primeira vez?** Veja o [README completo](https://github.com/${{ github.repository }}) para mais detalhes.
+            4. Defina sua senha mestre
+
+            > Os instaladores **não são assinados**. O Windows exibe um aviso do
+            > SmartScreen e o macOS exige liberar o app em Ajustes > Privacidade e
+            > Segurança. Compile você mesmo se preferir não confiar no binário.
+
+            ## Segurança
+            - Cofre cifrado com AES-256-GCM (cifragem autenticada)
+            - Chave derivada com Argon2id e salt aleatório por cofre
+            - A senha mestre não é gravada em disco nem retida em memória
+            - O backup enviado ao Google Drive vai cifrado, sem a chave
+
+            Limitações conhecidas (malware local, senha mestre fraca, binários não
+            assinados, ausência de auditoria externa) estão descritas em
+            [SECURITY.md](https://github.com/${{ github.repository }}/blob/main/SECURITY.md).
+
+            ## Atualizando de uma versão anterior
+            Cofres da 1.3.3 ou anterior são migrados automaticamente no primeiro
+            desbloqueio; o arquivo antigo é preservado como `apps.enc.backup`.
+            Aquelas versões usavam uma derivação de chave fraca, então **considere
+            trocar a senha mestre** após atualizar.
+
+            Detalhes no [README](https://github.com/${{ github.repository }}).
           releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
