@@ -1,10 +1,33 @@
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::crypto::{decrypt_data, encrypt_data, VaultKey};
 use crate::types::{OtpApp, AppError, Result};
 
 const DATA_DIR: &str = ".plaxo-otp";
+
+/// Restrict a path to the owning user (0600 for files, 0700 for directories).
+///
+/// Without this the vault inherits the process umask and typically lands
+/// world-readable, letting any local account copy the encrypted file and
+/// attack it offline at leisure.
+///
+/// No-op on Windows, where access is governed by ACLs inherited from the
+/// user profile directory rather than by Unix mode bits.
+#[cfg(unix)]
+fn restrict_to_owner(path: &Path) -> Result<()> {
+    use std::os::unix::fs::PermissionsExt;
+
+    let is_dir = path.metadata()?.is_dir();
+    let mode = if is_dir { 0o700 } else { 0o600 };
+    fs::set_permissions(path, fs::Permissions::from_mode(mode))?;
+    Ok(())
+}
+
+#[cfg(not(unix))]
+fn restrict_to_owner(_path: &Path) -> Result<()> {
+    Ok(())
+}
 const APPS_FILE: &str = "apps.enc";
 const GOOGLE_AUTH_FILE: &str = "google_auth.enc";
 
@@ -37,6 +60,7 @@ impl Storage {
 
         path.push(DATA_DIR);
         fs::create_dir_all(&path)?;
+        restrict_to_owner(&path)?;
         Ok(path)
     }
 
@@ -109,16 +133,20 @@ impl Storage {
                     tracing::warn!("Failed to create backup: {}", e);
                     e
                 })?;
+            restrict_to_owner(Path::new(&backup_path))?;
             tracing::debug!("Backup created");
         }
         
-        // Write to temporary file
+        // Write to temporary file, restricting it before the data lands so the
+        // secrets are never briefly readable by others.
         fs::write(&temp_path, &encrypted)
             .map_err(|e| {
                 tracing::error!("Failed to write temp file: {}", e);
                 e
             })?;
         
+        restrict_to_owner(Path::new(&temp_path))?;
+
         tracing::debug!("Temp file written");
         
         // Atomic move to final file
@@ -128,6 +156,8 @@ impl Storage {
                 e
             })?;
         
+        restrict_to_owner(&file_path)?;
+
         tracing::info!("Successfully saved {} apps to {:?}", apps.len(), file_path);
         Ok(())
     }
@@ -174,6 +204,11 @@ impl Storage {
     }
 
     fn try_load_file(&self, file_path: &PathBuf, key: &VaultKey) -> Result<Vec<OtpApp>> {
+        // Vaults written before permissions were enforced are still group- and
+        // world-readable. Tighten them on the way in, so an existing install is
+        // fixed at the next unlock rather than at the next write.
+        let _ = restrict_to_owner(file_path);
+
         let encrypted_data = fs::read_to_string(file_path)?;
         let decrypted = decrypt_data(&encrypted_data, key)?;
         let apps: Vec<OtpApp> = serde_json::from_str(&decrypted)?;
@@ -184,6 +219,7 @@ impl Storage {
         let encrypted = encrypt_data(auth_data, key)?;
         let file_path = self.get_google_auth_file_path()?;
         fs::write(&file_path, &encrypted)?;
+        restrict_to_owner(&file_path)?;
         tracing::info!("Saved Google auth to storage");
         Ok(())
     }
@@ -285,6 +321,64 @@ mod tests {
 
         let payload = storage.read_apps_payload().unwrap().unwrap();
         assert!(!crate::crypto::is_legacy_payload(&payload));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn vault_is_not_readable_by_others() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let temp_dir = TempDir::new().unwrap();
+        let storage = Storage::with_root(temp_dir.path().to_path_buf());
+        let key = VaultKey::new_vault("pw").unwrap();
+
+        storage
+            .save_apps(
+                &[OtpApp {
+                    id: "1".into(),
+                    name: "App".into(),
+                    secret: "JBSWY3DPEHPK3PXP".into(),
+                }],
+                &key,
+            )
+            .unwrap();
+        // Saving twice also exercises the backup copy.
+        storage.save_apps(&[], &key).unwrap();
+
+        let dir = temp_dir.path().join(DATA_DIR);
+        let vault = dir.join(APPS_FILE);
+        let backup = dir.join(format!("{APPS_FILE}.backup"));
+
+        for path in [&vault, &backup] {
+            let mode = path.metadata().unwrap().permissions().mode() & 0o777;
+            assert_eq!(
+                mode, 0o600,
+                "{path:?} must be owner-only, found {mode:o}"
+            );
+        }
+
+        let dir_mode = dir.metadata().unwrap().permissions().mode() & 0o777;
+        assert_eq!(dir_mode, 0o700, "data dir must be owner-only");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn loading_tightens_a_legacy_loose_vault() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let temp_dir = TempDir::new().unwrap();
+        let storage = Storage::with_root(temp_dir.path().to_path_buf());
+        let key = VaultKey::new_vault("pw").unwrap();
+        storage.save_apps(&[], &key).unwrap();
+
+        let vault = temp_dir.path().join(DATA_DIR).join(APPS_FILE);
+        // Simulate a vault written by an older build, under the default umask.
+        fs::set_permissions(&vault, fs::Permissions::from_mode(0o664)).unwrap();
+
+        storage.load_apps(&key).unwrap();
+
+        let mode = vault.metadata().unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode, 0o600, "reading must tighten an over-permissive vault");
     }
 
     #[test]

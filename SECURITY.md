@@ -30,7 +30,12 @@ em "O que isto não protege":
   app está destrancado
 - Uma senha mestre fraca continua sendo adivinhável offline; o Argon2id
   encarece cada tentativa, não elimina o ataque
-- Os binários das releases não são assinados nem reprodutíveis
+- Um código copiado fica até 30 segundos no clipboard, legível por qualquer
+  processo nesse intervalo
+- **Os binários das releases não são assinados e não há canal de atualização
+  automática.** Uma correção de segurança não chega sozinha a quem já instalou:
+  é preciso acompanhar as releases e reinstalar. Assinar exige certificado de
+  code signing (Windows) e conta Apple Developer (macOS)
 
 ## Histórico
 

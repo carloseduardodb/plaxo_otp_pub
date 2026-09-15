@@ -26,7 +26,11 @@ Aplicação desktop para geração de códigos OTP (TOTP), com o cofre local cif
 - **Salt aleatório por cofre** - Dois cofres com a mesma senha geram chaves diferentes
 - **Nonce aleatório por gravação** - O mesmo conteúdo nunca produz o mesmo arquivo
 - **Senha mestre não é retida** - Só a chave derivada fica em memória, e ela é
-  zerada quando o cofre é trancado
+  zerada quando o cofre é trancado, junto com os segredos decifrados
+- **Auto-lock** - O cofre tranca sozinho após 5 minutos sem interação e exige a
+  senha mestre de novo
+- **Clipboard efêmero** - Códigos copiados são apagados após 30 segundos
+- **Arquivos só do dono** - Cofre em `0600` e diretório em `0700`
 - **Sync opcional** - O arquivo enviado ao Google Drive vai cifrado; o Google
   recebe o mesmo blob que está no disco, sem a chave
 
@@ -217,6 +221,8 @@ Vale ser explícito, já que o cofre guarda segundo fator:
 
 - **Malware com seu usuário.** Enquanto o app está destrancado a chave está na
   memória do processo. Um infostealer rodando como você consegue os segredos.
+- **A janela do clipboard.** Os 30 segundos até a limpeza são suficientes para
+  outro processo ler o código copiado.
 - **Senha mestre fraca.** O Argon2id encarece cada tentativa, não torna o
   ataque impossível. Uma senha curta continua quebrável.
 - **Os binários não são assinados** nem reprodutíveis. Confira o hash das

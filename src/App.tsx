@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/tauri';
+import { listen } from '@tauri-apps/api/event';
 import { Shield, Lock } from 'lucide-react';
 import MasterPasswordModal from './components/MasterPasswordModal';
 import VirtualizedOtpList from './components/VirtualizedOtpList';
@@ -67,6 +68,55 @@ function App() {
     };
     checkMasterPassword();
   }, []);
+
+  // The backend locks the vault after a period without real input and emits
+  // this event. Drop the decrypted codes held in React state and return to the
+  // password prompt, otherwise the UI would keep showing them.
+  useEffect(() => {
+    const unlisten = listen('vault-locked', () => {
+      setIsAuthenticated(false);
+      setApps([]);
+      setSearchTerm('');
+      setShowAddModal(false);
+      setShowImportModal(false);
+    });
+
+    return () => {
+      void unlisten.then((off) => off());
+    };
+  }, []);
+
+  // Report genuine interaction so the auto-lock only fires when the user is
+  // actually away. Throttled, since these events fire constantly.
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    let lastSent = 0;
+    const report = () => {
+      const now = Date.now();
+      if (now - lastSent < 20_000) return;
+      lastSent = now;
+      void invoke('touch_activity').catch(() => {
+        // A failed heartbeat should never break the UI; the worst case is an
+        // earlier lock.
+      });
+    };
+
+    report();
+
+    const events: Array<keyof DocumentEventMap> = [
+      'mousemove',
+      'mousedown',
+      'keydown',
+      'wheel',
+      'touchstart',
+    ];
+    events.forEach((name) => document.addEventListener(name, report, { passive: true }));
+
+    return () => {
+      events.forEach((name) => document.removeEventListener(name, report));
+    };
+  }, [isAuthenticated]);
 
   const loadApps = useCallback(async () => {
     try {

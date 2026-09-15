@@ -1,4 +1,7 @@
 use std::sync::{Arc, RwLock};
+use std::time::Instant;
+
+use zeroize::Zeroize;
 
 use crate::crypto::VaultKey;
 use crate::google_drive::GoogleDriveAuth;
@@ -13,6 +16,11 @@ pub struct AppState {
     pub encryption_key: Arc<RwLock<Option<VaultKey>>>,
     pub google_auth: Arc<RwLock<Option<GoogleDriveAuth>>>,
     pub syncing: Arc<RwLock<bool>>,
+    /// Last real user interaction, used by the auto-lock timer.
+    ///
+    /// Only genuine input updates this. Code generation runs on a one-second
+    /// frontend timer, so counting it would keep the vault unlocked forever.
+    pub last_activity: Arc<RwLock<Instant>>,
 }
 
 impl AppState {
@@ -23,6 +31,7 @@ impl AppState {
             encryption_key: Arc::new(RwLock::new(None)),
             google_auth: Arc::new(RwLock::new(None)),
             syncing: Arc::new(RwLock::new(false)),
+            last_activity: Arc::new(RwLock::new(Instant::now())),
         }
     }
 
@@ -98,12 +107,32 @@ impl AppState {
         *syncing_guard = syncing;
     }
 
+    /// Record user activity, deferring the auto-lock.
+    pub fn touch(&self) {
+        *self.last_activity.write().unwrap() = Instant::now();
+    }
+
+    pub fn idle_secs(&self) -> u64 {
+        self.last_activity.read().unwrap().elapsed().as_secs()
+    }
+
+    /// Lock the vault, wiping every secret held in memory.
+    pub fn lock(&self) {
+        self.clear_all();
+        self.touch();
+    }
+
     pub fn clear_all(&self) {
         let mut apps_guard = self.apps.write().unwrap();
         let mut unlocked_guard = self.unlocked.write().unwrap();
         let mut key_guard = self.encryption_key.write().unwrap();
         let mut auth_guard = self.google_auth.write().unwrap();
 
+        // Overwrite the decrypted TOTP secrets before releasing the memory,
+        // instead of leaving them for swap or a core dump to pick up.
+        for app in apps_guard.iter_mut() {
+            app.secret.zeroize();
+        }
         apps_guard.clear();
         *unlocked_guard = false;
         // Dropping the VaultKey zeroizes the key material.

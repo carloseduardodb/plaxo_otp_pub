@@ -14,6 +14,28 @@ use crate::storage::Storage;
 use crate::sync::SyncManager;
 use crate::types::{OtpApp, AppError, Result};
 
+/// How long a copied code may sit in the clipboard.
+const CLIPBOARD_CLEAR_SECS: u64 = 30;
+
+/// Idle time before the vault locks itself.
+pub const AUTO_LOCK_SECS: u64 = 5 * 60;
+
+/// Report genuine user interaction, deferring the auto-lock.
+///
+/// Driven by real input events in the frontend. Code generation is not a
+/// signal of presence: it runs on a timer whether anyone is there or not.
+#[tauri::command]
+pub fn touch_activity(state: tauri::State<AppState>) {
+    state.touch();
+}
+
+/// Lock the vault immediately, wiping the key and secrets from memory.
+#[tauri::command]
+pub fn lock_vault(state: tauri::State<AppState>) {
+    tracing::info!("Vault locked");
+    state.lock();
+}
+
 #[tauri::command]
 pub fn has_master_password(state: tauri::State<AppState>) -> bool {
     if state.has_master_password() {
@@ -191,8 +213,27 @@ pub fn generate_otp(app_id: String, state: tauri::State<AppState>) -> Result<Str
 #[tauri::command]
 pub fn copy_to_clipboard<R: Runtime>(app: AppHandle<R>, text: String) -> Result<()> {
     app.clipboard_manager()
-        .write_text(text)
-        .map_err(|e| AppError::Io(e.to_string()))
+        .write_text(text.clone())
+        .map_err(|e| AppError::Io(format!("Failed to copy to clipboard: {}", e)))?;
+
+    // A TOTP code stops being valid within the minute, but the clipboard keeps
+    // it indefinitely and any process on the machine can read it. Clear it once
+    // the code is certainly stale — but only if it is still ours, so we never
+    // wipe something the user copied in the meantime.
+    let handle = app.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_secs(CLIPBOARD_CLEAR_SECS));
+
+        let manager = handle.clipboard_manager();
+        if let Ok(Some(current)) = manager.read_text() {
+            if current == text {
+                let _ = manager.write_text(String::new());
+                tracing::debug!("Cleared OTP code from clipboard");
+            }
+        }
+    });
+
+    Ok(())
 }
 
 #[tauri::command]
@@ -256,7 +297,9 @@ pub fn decode_qr_from_image(image_data: Vec<u8>) -> Result<crate::types::QrData>
     let qr_reader = QrCodeReader::new();
     let result = qr_reader.decode_from_image(&image_data)?;
     
-    tracing::info!("QR decoded successfully: {} - {}", result.name, result.secret);
+    // The secret itself is deliberately absent: at RUST_LOG=info it would be
+    // written to stderr in the clear, undoing the point of the vault.
+    tracing::info!("QR decoded successfully for: {}", result.name);
     Ok(result)
 }
 
@@ -286,7 +329,7 @@ pub fn decode_qr_from_clipboard() -> Result<crate::types::QrData> {
     let qr_reader = QrCodeReader::new();
     let result = qr_reader.decode_from_image(&png_bytes)?;
     
-    tracing::info!("QR decoded successfully from clipboard: {} - {}", result.name, result.secret);
+    tracing::info!("QR decoded successfully from clipboard for: {}", result.name);
     Ok(result)
 }
 

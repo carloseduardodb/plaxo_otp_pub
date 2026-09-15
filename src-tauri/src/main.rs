@@ -11,8 +11,13 @@ mod sync;
 mod tray;
 mod types;
 
+use tauri::Manager;
+
 use state::AppState;
 use tray::{create_tray, handle_tray_event, update_tray_menu};
+
+/// How often the auto-lock timer checks for idleness.
+const LOCK_CHECK_INTERVAL_SECS: u64 = 15;
 
 fn main() {
     // Initialize tracing
@@ -37,11 +42,35 @@ fn main() {
             // Initialize tray menu with correct autostart status
             let autostart_enabled = commands::get_autostart_status().unwrap_or(false);
             update_tray_menu(&app.handle(), autostart_enabled);
+
+            // The app lives in the tray, so an unlocked vault would otherwise
+            // stay unlocked for as long as the machine is on.
+            let handle = app.handle();
+            std::thread::spawn(move || loop {
+                std::thread::sleep(std::time::Duration::from_secs(LOCK_CHECK_INTERVAL_SECS));
+
+                let state = handle.state::<AppState>();
+                if !state.has_master_password() {
+                    continue;
+                }
+
+                if state.idle_secs() >= commands::AUTO_LOCK_SECS {
+                    state.lock();
+                    tracing::info!("Vault auto-locked after inactivity");
+                    // Tell the UI to drop back to the password prompt; without
+                    // this it would keep rendering stale codes from its own
+                    // React state.
+                    let _ = handle.emit_all("vault-locked", ());
+                }
+            });
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             commands::has_master_password,
             commands::verify_master_password,
+            commands::touch_activity,
+            commands::lock_vault,
             commands::get_apps,
             commands::add_app,
             commands::edit_app_name,
